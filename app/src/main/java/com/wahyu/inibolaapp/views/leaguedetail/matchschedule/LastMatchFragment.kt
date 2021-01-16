@@ -1,0 +1,98 @@
+package com.fitrianti.inibolaapp.views.leaguedetail.matchschedule
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.core.os.bundleOf
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.fitrianti.inibolaapp.R
+import com.fitrianti.inibolaapp.app.invisible
+import com.fitrianti.inibolaapp.app.visible
+import com.fitrianti.inibolaapp.data.model.EmptyState
+import com.fitrianti.inibolaapp.data.model.LoadingState
+import com.fitrianti.inibolaapp.data.model.NoResultState
+import com.fitrianti.inibolaapp.data.model.PopulatedState
+import com.fitrianti.inibolaapp.views.matchdetail.MatchDetailActivity
+import kotlinx.android.synthetic.main.last_match_fragment.*
+import org.jetbrains.anko.support.v4.intentFor
+import org.koin.android.viewmodel.ext.android.viewModel
+
+class LastMatchFragment : Fragment() {
+
+    private val scheduleViewModel: MatchScheduleViewModel by viewModel()
+    lateinit var adapter: MatchesScheduleAdapter
+    private var mLeagueId: String? = null
+
+    companion object {
+        private const val LEAGUE_ID = "league_id"
+        fun newInstance(leagueId: String?) = LastMatchFragment().apply {
+            arguments = bundleOf(LEAGUE_ID to leagueId)
+        }
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.last_match_fragment, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        mLeagueId = arguments?.getString(LEAGUE_ID)
+        // Prepare recyclerview & adapter
+        adapter = MatchesScheduleAdapter(listOf()) { event ->
+            startActivity(
+                intentFor<MatchDetailActivity>(
+                    MatchDetailActivity.MATCH_ID to event.idEvent,
+                    MatchDetailActivity.HOME_BADGE to event.strHomeTeamBadge,
+                    MatchDetailActivity.AWAY_BADGE to event.strAwayTeamBadge
+                )
+            )
+        }
+        rv_last_match.layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL, false)
+        rv_last_match.adapter = adapter
+    }
+
+    override fun onActivityCreated(savedInstanceState: Bundle?) {
+        super.onActivityCreated(savedInstanceState)
+        mLeagueId?.let {
+            scheduleViewModel.getLastEventsState(it).observe(this, Observer { state ->
+                when (state) {
+                    is EmptyState -> {
+
+                    }
+                    is LoadingState -> {
+                        progressbar_last_match.visible()
+                        tv_empty_view.invisible()
+                    }
+                    is PopulatedState -> {
+                        progressbar_last_match.invisible()
+                        adapter = MatchesScheduleAdapter(state.data) { event ->
+                            startActivity(
+                                intentFor<MatchDetailActivity>(
+                                    MatchDetailActivity.MATCH_ID to event.idEvent,
+                                    MatchDetailActivity.HOME_BADGE to event.strHomeTeamBadge,
+                                    MatchDetailActivity.AWAY_BADGE to event.strAwayTeamBadge
+                                )
+                            )
+                        }
+                        rv_last_match.adapter = adapter
+                    }
+                    is NoResultState -> {
+                        progressbar_last_match.invisible()
+                        tv_empty_view.visible()
+                    }
+                    else -> {
+                    }
+                }
+            })
+        }
+
+    }
+
+}
